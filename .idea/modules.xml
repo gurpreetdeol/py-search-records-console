@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/py-search-records-console.iml" filepath="$PROJECT_DIR$/.idea/py-search-records-console.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../py-todo-list/.idea/py-todo-list.iml" filepath="$PROJECT_DIR$/../py-todo-list/.idea/py-todo-list.iml" />
     </modules>
   </component>
 </project>

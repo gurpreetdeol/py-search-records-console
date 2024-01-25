@@ -1,4 +1,4 @@
-"""TicketSearch App entry point."""
+"""Ticket App entry point."""
 # ticket/__main__.py
 
 from ticket import cli, __app_name__

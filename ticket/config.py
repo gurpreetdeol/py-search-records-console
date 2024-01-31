@@ -9,14 +9,14 @@ from ticket import (
     DB_WRITE_ERROR, DIR_ERROR, FILE_ERROR, SUCCESS, __app_name__
 )
 
+import base64
+
 CONFIG_DIR_PATH = Path(typer.get_app_dir(__app_name__))
 CONFIG_FILE_PATH = CONFIG_DIR_PATH / "config.ini"
 
 
 def init_json_db(db_path: str) -> int:
     """Initialize JSON DB file"""
-    print(f"CONFIG_DIR_PATH: {CONFIG_DIR_PATH}")
-    print(f"CONFIG_FILE_PATH: {CONFIG_FILE_PATH}")
     config_code = _init_config_file()
     if config_code != SUCCESS:
         return config_code
@@ -51,3 +51,27 @@ def _create_json_db(db_path: str) -> int:
     except OSError:
         return DB_WRITE_ERROR
     return SUCCESS
+
+
+class DBConfiguration:
+    SERVER: str = None
+    DATABASE: str = None
+    USERNAME: str = None
+    PASSWORD: str = None
+    PORT: int = 0
+    IS_FOUND: bool = False
+    ERROR_MESSAGE: str = None
+
+    def __init__(self):
+        try:
+            config_parser = configparser.ConfigParser()
+            config_parser.read(CONFIG_FILE_PATH)
+            server_config = config_parser['SERVER']
+            self.SERVER = base64.b64decode(server_config['host']).decode('utf-8')
+            self.DATABASE = base64.b64decode(server_config['database']).decode('utf-8')
+            self.PORT = int(base64.b64decode(server_config['port']).decode('utf-8'))
+            self.USERNAME = base64.b64decode(server_config['username'.lower()]).decode('utf-8')
+            self.PASSWORD = base64.b64decode(server_config['password'.lower()]).decode('utf-8')
+            self.IS_FOUND = True
+        except configparser.Error as err:
+            self.ERROR_MESSAGE = str(err)

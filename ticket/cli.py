@@ -7,14 +7,17 @@ from typing import (
 )
 
 from rich.console import Console
-from rich.table import Table
+from rich.table import Table, Column
+from rich import box
 
 import typer
 from pathlib import Path
 
 from ticket import (
-    __app_name__, __version__, json_db, ERRORS, config, ticket
+    __app_name__, __version__, json_db, ERRORS, config, ticket, database
 )
+
+import pandas as pd
 
 app = typer.Typer()
 
@@ -22,21 +25,119 @@ console = Console()
 
 
 @app.command(name="search")
-def search(
-        search_text: str,
+def search(ticket_number: Optional[int] = typer.Option(
+    None,  #
+    "--search",
+    "-s",
+    prompt="Ticket#: ?"
+),
 ):
-    __add_log(search_text)
-    typer.secho(
-        f"Searching for {search_text}",
-        fg=typer.colors.GREEN
-    )
-    if 1 == 1:
-        msg = f"No records found for {search_text}"
-        __add_log(msg, 2)
-        typer.secho(message=msg,
+    """Search for Ticket details by Ticket Number"""
+    __add_log(str(ticket_number))
+    __ticket_number: int = 0
+    try:
+        __ticket_number = int(ticket_number)
+    except ValueError:
+        typer.secho(
+            f"Invalid Ticker Number {__ticket_number}.",
+            fg=typer.colors.RED
+        )
+        raise typer.Exit(1)
+
+    db = database.Database()
+    if db.IS_CONNECTED:
+        records = db.search(__ticket_number)
+        __display_ticket_info(__ticket_number, records)
+        if len(records) == 0:
+            msg = f"No records found for {__ticket_number}"
+            __add_log(msg, 2)
+            typer.secho(message=msg,
+                        fg=typer.colors.RED
+                        )
+            raise typer.Exit(1)
+    else:
+        __add_log(db.ERROR_MESSAGE, 1)
+        typer.secho(message=db.ERROR_MESSAGE,
                     fg=typer.colors.RED
                     )
         raise typer.Exit(1)
+
+
+def __display_ticket_info(__ticket_number, records):
+    __table_title = f"Customer Ticket #{__ticket_number} Details"
+    table = Table(Column(header="id", min_width=11),  # 0
+                  Column(header="description"),  # 1
+                  Column(header="req-id", min_width=11),  # 2
+                  Column(header="req-name"),  # 3
+                  Column(header="req-status-name"),  # 4
+                  Column(header="resp-id"),  # 5
+                  Column(header="resp-name"),  # 6
+                  Column(header="status"),  # 7
+                  Column(header="urgent"),  # 8
+                  Column(header="source"),  # 9
+                  # Column(header="source-name"),  # 10
+                  Column(header="spam"),  # 11
+                  Column(header="deleted"),  # 12
+                  Column(header="created-at"),  # 13
+                  Column(header="updated-at"),  # 14
+                  Column(header="trained"),  # 15
+                  Column(header="subject"),  # 16
+                  Column(header="display-id"),  # 17
+                  Column(header="due-by"),  # 18
+                  # Column(header="frDueBy"),  # 19
+                  Column(header="is_escal."),  # 20
+                  Column(header="priority"),  # 21
+                  # Column(header="priority-name"),  # 22
+                  Column(header="fr-escal."),  # 23
+                  Column(header="to-email", min_width=20),  # 24
+                  # Column(header="delta"),  # 25
+                  Column(header="ticket-type"),  # 26
+                  title="Customer Ticket Details",
+                  expand=True)
+
+    for index, log in enumerate(records, 1):
+        email_to = str(log[24]).split("@")
+        email_to_ext = email_to[1].split('.')
+        email_to_domain_full = "\n.".join(list(email_to_ext))
+        table.add_row(str(int(log[0])),
+                      str(log[1]),
+                      str(int(log[2])),
+                      str(log[3]),
+                      str(log[4]),
+                      str(log[5]),
+                      str(log[6]),
+                      str(log[7]),
+                      str(log[8]),
+                      f"{str(log[9])}. {str(log[10])}",
+                      str(log[11]),
+                      str(log[12]),
+                      str(log[13]).split("T")[0],
+                      str(log[14]).split("T")[0],
+                      str(log[15]),
+                      str(log[16]),
+                      str(log[17]),
+                      str(log[18]).split("T")[0],
+                      # str(log[19]),
+                      str(log[20]),
+                      f"{str(log[21])}. {str(log[22])}",
+                      str(log[23]),
+                      f"{email_to[0]}\n@{str(email_to_domain_full)}",
+                      # f"{email_to[0]}\n@{email_domain}\n.{email_to_ext}",
+                      # str(log[25]),
+                      str(log[26]))
+
+    console.print(table)
+
+
+@app.command(name="config")
+def config_path(config_search: Optional[str] = typer.Option(
+    "",
+    "--config",
+    "-c"
+),
+):
+    """Get back configuration file path"""
+    typer.secho(f"Configuration file path: {config.CONFIG_FILE_PATH}", fg=typer.colors.BLACK)
 
 
 @app.command()
@@ -102,8 +203,12 @@ def __add_log(log: str, priority: int = 1) -> None:
     #     )
 
 
-@app.command(name="logs")
-def log_list_all() -> None:
+@app.command(name="logs", short_help="List all Ticket logs")
+def log_list_all(search_log: Optional[str] = typer.Option(
+    "",
+    "--logs",
+    "-l"
+), ) -> None:
     """List all Ticket logs"""
     ticket_log = get_logs()
     log_list = ticket_log.get_log_list()
@@ -120,8 +225,12 @@ def log_list_all() -> None:
     console.print(table)
 
 
-@app.command(name="logs_plain")
-def log_list_all_plain() -> None:
+@app.command(name="logs_plain", short_help="List all Ticket logs in plain text")
+def log_list_all_plain(search_log: Optional[str] = typer.Option(
+    "",
+    "--logs_plain",
+    "-lp"
+), ) -> None:
     """List all Ticket logs in plain"""
     ticket_log = get_logs()
     log_list = ticket_log.get_log_list()
